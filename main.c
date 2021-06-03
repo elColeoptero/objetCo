@@ -9,10 +9,13 @@
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
+#include <X11/Xlib.h>
 #include "main.h"
+#include "bdd.h"
 
 
 int main (int argc, char **argv){
+  XInitThreads();
   gtk_init(&argc, &argv);
   GtkCssProvider* Provider = gtk_css_provider_new();
   GdkDisplay* Display = gdk_display_get_default();
@@ -20,10 +23,7 @@ int main (int argc, char **argv){
 
   gtk_style_context_add_provider_for_screen(Screen, GTK_STYLE_PROVIDER(Provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
   gtk_css_provider_load_from_path(GTK_CSS_PROVIDER(Provider), "styles.css", NULL);
-  GtkStyleContext *Context;
   afficherMenu();
-  //afficherContenu();
-  //afficherNotes();
 }
 
 void *time_thread_function(void *arg){
@@ -35,34 +35,6 @@ void *time_thread_function(void *arg){
   gtk_label_set_text(GTK_LABEL(date_heure), tmp);
   sleep(1);
   }
-}
-
-void *scan_thread_function(void *arg){
-  char codeBar[MAX_SIZE];
-  while(1) {
-    scanf("%s", codeBar);
-  }
-}
-
-
-List_product getProduits(){
-  List_product l_produit;
-  strcpy(l_produit.produits[0].id, "0");
-  strcpy(l_produit.produits[0].quantity, "200");
-  strcpy(l_produit.produits[0].outside, "0");
-  strcpy(l_produit.produits[0].codebar, "10525");
-  strcpy(l_produit.produits[0].name, "MNM");
-  strcpy(l_produit.produits[0].brand, "KELLOGS");
-  strcpy(l_produit.produits[0].date, "2020/05/17");
-  strcpy(l_produit.produits[1].id, "1");
-  strcpy(l_produit.produits[1].quantity, "200");
-  strcpy(l_produit.produits[1].outside, "0");
-  strcpy(l_produit.produits[1].codebar, "100525");
-  strcpy(l_produit.produits[1].name, "Chips");
-  strcpy(l_produit.produits[1].brand, "Lays");
-  strcpy(l_produit.produits[1].date, "2020/06/17");
-  l_produit.nb_produits = 2;
-  return l_produit;
 }
 
 void afficherNotes(){
@@ -77,15 +49,13 @@ void afficherNotes(){
   GtkStyleContext *Context;
 
   p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  g_signal_connect (G_OBJECT (p_window), "destroy", G_CALLBACK (cb_quit), NULL);
-
   /* Creation du conteneur principal */
   p_main_box = gtk_grid_new ();
   gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
 
   header(p_main_box, p_window, "NOTES");
 
-  notes = getNotes();
+  notes = retrieveNotes();
 
   for (int i = 0; i < notes.nb_list; i++){
     GtkWidget *note_tmp;
@@ -99,8 +69,6 @@ void afficherNotes(){
     Context = gtk_widget_get_style_context(note_tmp);
     gtk_style_context_add_class(Context, "Texte_notes");
     gtk_grid_attach(GTK_GRID(p_main_box), note_tmp, 0 + 2*i, 3, 2, 3); 
-
-
   }
 
 
@@ -114,16 +82,6 @@ void afficherNotes(){
   /* Lancement de la boucle principale */
   gtk_main ();
 
-}
-
-list_note getNotes(){
-  list_note notes;
-  strcpy(notes.list_note[0].texte, "Lorem ipsum inhzoei bniozecb \nvibvz vbozivb ievzeovzb\nve");
-  strcpy(notes.list_note[0].date, "Lun 17th 2021");
-  strcpy(notes.list_note[1].texte, "Lorem ipsum sdvsdvsdv vibvz \nvbozivb ievzeovzbve");
-  strcpy(notes.list_note[1].date, "Lun 18th 2021");
-  notes.nb_list = 2;
-  return notes;
 }
 
 void afficherContenu(){
@@ -145,8 +103,6 @@ void afficherContenu(){
   
   /* Creation de la fenetre principale de notre application */
   p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  g_signal_connect (G_OBJECT (p_window), "destroy", G_CALLBACK (cb_quit), NULL);
-
   /* Creation du conteneur principal */
   p_main_box = gtk_grid_new ();
   gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
@@ -188,7 +144,7 @@ void afficherContenu(){
   Context = gtk_widget_get_style_context(outside);
   gtk_style_context_add_class(Context, "Item_tableau");
 
-  produits = getProduits();
+  produits = retrieveProducts();
   for (int i = 0; i < produits.nb_produits ; i++) {
     ajout_item_tableau(p_main_box, i + 2, 0, produits.produits[i].name);
     ajout_item_tableau(p_main_box, i + 2, 1, produits.produits[i].brand);
@@ -198,7 +154,7 @@ void afficherContenu(){
     
 
   }
-
+  gtk_window_set_destroy_with_parent(GTK_WINDOW(p_window), false);
   gtk_window_fullscreen(GTK_WINDOW(p_window));
   GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
   //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
@@ -238,14 +194,9 @@ void afficherMenu(){
   
   /* Creation de la fenetre principale de notre application */
   p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  g_signal_connect (G_OBJECT (p_window), "destroy", G_CALLBACK (cb_quit), NULL);
-
   /* Creation du conteneur principal */
   p_main_box = gtk_grid_new ();
   gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
-
-
-    /* Creation du bouton "Nom" */
   
   label = gtk_label_new(tmp);
   
@@ -324,6 +275,7 @@ void afficherMenu(){
   
   /* Affichage de la fenetre principale */
   gtk_widget_set_size_request(p_window, 400, 300);
+  gtk_window_set_destroy_with_parent(GTK_WINDOW(p_window), false);
   gtk_window_fullscreen(GTK_WINDOW(p_window));
   GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
   //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
@@ -334,25 +286,111 @@ void afficherMenu(){
 
 }
 
+void refresh_produit(GtkWidget * widget[3]){
+  
+    char tmp[255];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(tmp, "%02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mday, tm.tm_mon);
+    FILE *fp;
+    char buffer[5000000], codeBar[MAX_SIZE], codeBarTranslated[MAX_SIZE], url[200], urlImage[MAX_SIZE];
+    struct json_object *parsed_json;
+    struct json_object *produit_json;
+    struct json_object *brand;
+    struct json_object *status;
+    struct json_object *quantity;
+    struct json_object *image_front_url;
+    struct json_object *name;
+    size_t n_friends;
+    Product produit;
+
+    fflush(stdin);
+    fflush(stdout);
+    strcpy(codeBar, gtk_entry_get_text(widget[1]));
+    gtk_entry_set_text(widget[1], "");
+    transformation(codeBar,codeBarTranslated);
+    strcpy(url, "");
+    strcat(url,"curl -s https://world.openfoodfacts.org/api/v0/product/");
+    strcat(url,codeBarTranslated);
+    strcat(url,".json > file.json");
+    printf("%s\n",url );
+
+    system(url);
+    fp = fopen("file.json","r");
+    fread(buffer, 5000000, 1, fp);
+    fclose(fp);
+
+
+    parsed_json = json_tokener_parse(buffer);
+    json_object_object_get_ex(parsed_json, "status", &status);
+    if (json_object_get_int(status)==0){
+      printf("Produit introuvable\n");}
+    else {
+    json_object_object_get_ex(parsed_json, "product", &produit_json);
+    json_object_object_get_ex(produit_json, "product_name_fr", &name);
+    json_object_object_get_ex(produit_json, "image_url", &image_front_url);
+    json_object_object_get_ex(produit_json, "brands", &brand);
+    json_object_object_get_ex(produit_json, "product_quantity", &quantity);
+
+    strcpy(produit.brand, json_object_get_string(brand));
+    strcpy(produit.name, json_object_get_string(name));
+    strcpy(produit.codebar, codeBarTranslated);
+    strcpy(produit.quantity, json_object_get_string(quantity));
+    strcpy(produit.date, tmp);
+    strcpy(produit.outside, "0");
+    
+    strcpy(urlImage,"curl -s ");
+    strcat(urlImage,json_object_get_string(image_front_url));
+    strcat(urlImage," >img.jpg");
+    system(urlImage);
+
+
+    gtk_label_set_text(GTK_LABEL(widget[2]), json_object_get_string(name));
+    
+    GError *error = NULL;
+    GdkPixbuf *pix = gdk_pixbuf_new_from_file ("img.jpg", &error);
+    if (pix == NULL) {
+        g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
+        g_error_free (error);
+        exit (1);
+    }
+    
+    gtk_image_set_from_pixbuf (widget[3], pix);
+    insertProduct(produit);
+    
+    }
+}
 
 
 void afficherAjout(){
-  pthread_t time_thread, scan_thread;
+  pthread_t time_thread;
+  pid_t mon_pid;
   list_note notes;
-  
+
   GtkWidget *p_window = NULL;
-  GtkWidget *p_main_box = NULL;
+  
+  GtkWidget *box_codebar[3];
   /* Initialisation de GTK+ */
 
   p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  g_signal_connect (G_OBJECT (p_window), "destroy", G_CALLBACK (cb_quit), NULL);
-
   /* Creation du conteneur principal */
-  p_main_box = gtk_grid_new ();
-  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
+  box_codebar[0] = gtk_grid_new ();
+  gtk_container_add (GTK_CONTAINER (p_window), box_codebar[0]);
 
-  header(p_main_box, p_window, "AJOUT DE PRODUITS");
-    
+  header(box_codebar[0], p_window, "AJOUT DE PRODUITS");
+
+  box_codebar[2] = gtk_label_new("");
+  gtk_label_set_justify(GTK_LABEL(box_codebar[2]), GTK_JUSTIFY_CENTER);
+  gtk_grid_attach (GTK_GRID (box_codebar[0]), box_codebar[2], 1, 2, 1, 1);
+
+  box_codebar[3]  = gtk_image_new ();
+  gtk_grid_attach(GTK_GRID (box_codebar[0]), box_codebar[3], 1, 3, 1, 1);
+  
+  box_codebar[1] = gtk_entry_new();
+  g_signal_connect (G_OBJECT (box_codebar[1]), "activate", G_CALLBACK (cb_codebar), box_codebar);
+  gtk_grid_attach(GTK_GRID(box_codebar[0]), box_codebar[1], 2, 1, 1, 1);
+  
+
   /* Affichage de la fenetre principale */
   gtk_widget_set_size_request(p_window, 400, 300);
   gtk_window_fullscreen(GTK_WINDOW(p_window));
@@ -361,7 +399,9 @@ void afficherAjout(){
   gtk_widget_modify_bg(p_window, GTK_STATE_NORMAL, &grey);
   gtk_widget_show_all (p_window);
   /* Lancement de la boucle principale */
-  gtk_main ();
+    
+    gtk_main ();
+
 }
 
 void header(GtkWidget *p_main_box, GtkWidget *p_window, char title[20]){
@@ -385,7 +425,7 @@ void header(GtkWidget *p_main_box, GtkWidget *p_window, char title[20]){
   gtk_grid_attach(GTK_GRID(p_main_box), title_widget, 2, 0, 1, 1);
 
   back = gtk_button_new_with_label("Retour");
-  g_signal_connect (G_OBJECT (back), "clicked", G_CALLBACK (cb_menu), NULL);
+  g_signal_connect (G_OBJECT (back), "clicked", G_CALLBACK (cb_menu), p_window);
   gtk_grid_attach (GTK_GRID (p_main_box), back, 0, 0, 1, 1);
 
   line_header = gtk_label_new("");
@@ -396,110 +436,10 @@ void header(GtkWidget *p_main_box, GtkWidget *p_window, char title[20]){
   gtk_grid_attach(GTK_GRID(p_main_box), line_header, 0, 1, 6, 1);
 }
 
-void afficherProduit()
-{
-  char codeBar[MAX_SIZE];
-  char codeBarTranslated[MAX_SIZE];
-  char url[100],urlImage[1000]="";
-  scanf("%s", codeBar);
-  transformation(codeBar,codeBarTranslated);
-  strcat(url,"curl -s https://world.openfoodfacts.org/api/v0/product/");
-  strcat(url,codeBarTranslated);
-  strcat(url,".json > file.json");
-  printf("%s\n",url );
-
-  system(url);
-  
-
-  FILE *fp;
-  char buffer[50000];
-  struct json_object *parsed_json;
-  struct json_object *name;
-  struct json_object *age;
-  struct json_object *status;
-  struct json_object *friend;
-  struct json_object *image_front_url;
-  size_t n_friends;
-
-  size_t i; 
-
-  fp = fopen("file.json","r");
-  fread(buffer, 50000, 1, fp);
-  fclose(fp);
-
-
-  parsed_json = json_tokener_parse(buffer);
-  json_object_object_get_ex(parsed_json, "status", &status);
-  printf("Statut : %d\n", json_object_get_int(status));
-  if (json_object_get_int(status)==0){
-    printf("Produit introuvable\n");}
-  else {
-  json_object_object_get_ex(parsed_json, "product", &name);
-  json_object_object_get_ex(name, "product_name_fr", &age);
-  json_object_object_get_ex(name, "image_url", &image_front_url);
-  
-  strcpy(urlImage,"curl -s ");
-  strcat(urlImage,json_object_get_string(image_front_url));
-  strcat(urlImage," >img.jpg");
-  system(urlImage);
-  printf("Nom : %s\n", json_object_get_string(age));
-  printf("Lien Image : %s\n",urlImage);
-  }
-  GtkWidget *p_window = NULL;
-  GtkWidget *p_main_box = NULL;
-
-  /* Initialisation de GTK+ */
-
-
-  /* Creation de la fenetre principale de notre application */
-  p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  g_signal_connect (G_OBJECT (p_window), "destroy", G_CALLBACK (cb_quit), NULL);
-
-  /* Creation du conteneur principal */
-  p_main_box = gtk_vbox_new (FALSE, 0);
-  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
-
- 
-
-    /* Creation du bouton "Nom" */
-  {
-    GtkWidget *label;
-  label = gtk_label_new(json_object_get_string(age));
-
-  gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-  //gtk_container_add(GTK_CONTAINER(window), label);
-  gtk_box_pack_start (GTK_BOX (p_main_box), label, FALSE, FALSE, 0);
-  }
-  {
-    GError *error = NULL;
-  GdkPixbuf *pix = gdk_pixbuf_new_from_file ("img.jpg", &error);
-  if (pix == NULL) {
-      g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
-      g_error_free (error);
-      exit (1);
-  }
-
-  GtkWidget *image = gtk_image_new_from_pixbuf (pix);
-   gtk_box_pack_start (GTK_BOX (p_main_box), image, FALSE, FALSE, 0);
-  }
-
-   /* Creation du bouton "Quitter" */
-  {
-    GtkWidget *p_button = NULL;
-
-    p_button = gtk_button_new_with_label ("quitter");
-    g_signal_connect (G_OBJECT (p_button), "clicked", G_CALLBACK (cb_quit), NULL);
-    gtk_box_pack_start (GTK_BOX (p_main_box), p_button, FALSE, FALSE, 0);
-  }
-  /* Affichage de la fenetre principale */
-  gtk_widget_show_all (p_window);
-  /* Lancement de la boucle principale */
-  gtk_main ();
-}
-
 char* transformation(char* codeBar, char* codeBarTranslated)
 {
   // TODO : refactor 
+  strcpy(codeBarTranslated, "");
   for (int i = 0; i < strlen(codeBar); ++i)
   {
     switch(codeBar[i]){

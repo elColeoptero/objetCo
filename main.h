@@ -19,6 +19,8 @@ typedef struct {
 } List_product;
 
 typedef struct {
+  char id[10];
+  char auteur[20];
   char texte[255];
   char date[50];
 } note;
@@ -28,15 +30,19 @@ typedef struct {
   int nb_list;
 } list_note;
 
+
 #define MAX_SIZE 20
 
 
 GtkWidget * date_heure;
 
+
 void afficherMenu();
 void afficherProduit();
 void afficherContenu();
 void afficherNotes();
+void afficherAjout();
+void refresh_produit(GtkWidget * widget[3]);
 void header(GtkWidget *p_main_box, GtkWidget *p_window, char title[20]);
 void ajout_item_tableau(GtkWidget * p_window, int row, int column, char * item_text);
 char* transformation(char* codeBar, char* codeBarTranslated);
