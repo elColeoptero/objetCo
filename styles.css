@@ -1,0 +1,51 @@
+.Date {
+    font-weight: 800;
+    font-size: 45px;
+    padding: 10px 10px 10px 10px;
+}
+
+
+.Item_tableau {
+    font-weight: 800;
+    font-size: 25px;
+    padding: 10px 10px 10px 10px;
+    border: 2px solid black;
+}
+
+button{
+    padding:0.35em 1.2em;
+    border:0.1em solid #FFFFFF;
+    margin:0 0.3em 0.3em 0;
+    border-radius:0.12em;
+    text-decoration:none;
+    font-family:'Roboto',sans-serif;
+    font-weight:300;
+    color:#000000;
+    background-color:#999999;
+    transition: all 0.2s;
+    }
+button:hover{
+    color:#000000;
+    background-color:#FFFFFF;
+}
+
+.UpperLine{
+    border-top: 2px solid black;
+}
+
+.Date_notes{
+    font-weight: 400;
+    font-size: 30px;
+    margin: 20px 20px 20px 20px;
+    margin-bottom: 0px;
+    border:2px solid black;
+}
+
+.Texte_notes{
+    font-weight: 400;
+    font-size: 30px;
+    margin-right: 20px;
+    margin-left: 20px;
+    margin-bottom: 20px;
+    border:2px solid black;
+}
