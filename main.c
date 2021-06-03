@@ -38,13 +38,9 @@ void *time_thread_function(void *arg){
 }
 
 void *scan_thread_function(void *arg){
+  char codeBar[MAX_SIZE];
   while(1) {
     scanf("%s", codeBar);
-    transformation(codeBar,codeBarTranslated);
-    strcat(url,"curl -s https://world.openfoodfacts.org/api/v0/product/");
-    strcat(url,codeBarTranslated);
-    strcat(url,".json > file.json");
-    printf("%s\n",url );
   }
 }
 
