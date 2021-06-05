@@ -46,4 +46,7 @@ void refresh_produit(GtkWidget * widget[3]);
 void header(GtkWidget *p_main_box, GtkWidget *p_window, char title[20]);
 void ajout_item_tableau(GtkWidget * p_window, int row, int column, char * item_text);
 char* transformation(char* codeBar, char* codeBarTranslated);
+void retrait_produit(GtkWidget *entry_codebar_out);
 list_note getNotes();
+char * traduction_date(char* phrase);
+int split (const char *str, char c, char ***arr);

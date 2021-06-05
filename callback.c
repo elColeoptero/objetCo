@@ -54,3 +54,8 @@ void cb_ajout_produit (GtkWidget *p_widget, gpointer user_data)
 void cb_codebar(GtkWidget *p_widget, GtkWidget *box_codebar[3]) {
   refresh_produit(box_codebar);
 }
+
+void cb_codebar_out(GtkWidget *p_widget, GtkWidget *entry_codebar_out) {
+  printf("Retrait du produit");
+  retrait_produit(entry_codebar_out);
+}

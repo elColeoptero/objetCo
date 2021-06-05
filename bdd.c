@@ -21,8 +21,52 @@ int insertProduct(Product produit){
   MYSQL *con = connection();
   char querry[500];
   sprintf(querry, "INSERT INTO t_produit(nom,quantite,peremption,codeBarre,marque,outside) VALUES('%s','%s','%s','%s','%s','%s')",produit.name, produit.quantity, produit.date, produit.codebar, produit.brand, produit.outside);
-  printf("%s", querry);
   return mysql_query(con, querry);
+}
+
+int productExist(char codebar[20]){
+  MYSQL *con = connection();
+  char querry[500];
+  sprintf(querry, "SELECT * FROM t_produit where codeBarre = %s", codebar);
+  printf("%s", querry);
+  if (mysql_query(con, querry))
+  {
+    fprintf(stderr, "Erreur dans la connexion");
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
+  int num_rows = mysql_num_rows(result);
+  return num_rows;
+}
+
+void setOutside(char codebar[20]){
+  MYSQL *con = connection();
+  char outside[2];
+  char querry[500];
+  sprintf(querry, "SELECT outside from t_produit where codeBarre = %s", codebar);
+  printf(querry);
+  if (mysql_query(con, querry))
+  {
+    fprintf(stderr, "Erreur dans la connexion");
+  }
+  MYSQL_RES *result1 = mysql_store_result(con);
+  MYSQL_ROW row;
+  while ((row = mysql_fetch_row(result1)))
+  {
+      strcpy(outside, row[0]);
+      break;
+  }
+  printf("%s", outside);
+  if (strcmp(outside, "0") == 0)
+    sprintf(querry, "UPDATE t_produit SET outside='1' where codeBarre = %s", codebar);
+  else
+    sprintf(querry, "UPDATE t_produit SET outside='0' where codeBarre = %s", codebar);
+  printf(querry);
+  if (mysql_query(con, querry))
+  {
+    fprintf(stderr, "Erreur dans la connexion");
+  }
+  MYSQL_RES *result = mysql_store_result(con);
 }
 
 List_product retrieveProducts(){

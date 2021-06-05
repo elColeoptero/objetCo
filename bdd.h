@@ -6,4 +6,6 @@ int insertCache(char codebar[50]);
 int insertProduct(Product produit);
 List_product retrieveProducts();
 list_note retrieveNotes();
+void setOutside(char codebar[20]);
+int productExist(char codebar[20]);
 MYSQL  * connection();

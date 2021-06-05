@@ -27,12 +27,12 @@ int main (int argc, char **argv){
 }
 
 void *time_thread_function(void *arg){
-  while(1) {
+  while(GTK_IS_LABEL(date_heure)) {
   char tmp[255];
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
   sprintf(tmp, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-  gtk_label_set_text(GTK_LABEL(date_heure), tmp);
+  gtk_label_set_text(date_heure, tmp);
   sleep(1);
   }
 }
@@ -208,6 +208,11 @@ void afficherMenu(){
   Context = gtk_widget_get_style_context(date_heure);
   gtk_style_context_add_class(Context, "Date");
 
+  GtkWidget *entry_codebar = gtk_entry_new();
+  g_signal_connect (G_OBJECT (entry_codebar), "activate", G_CALLBACK (cb_codebar_out), entry_codebar);
+  gtk_grid_attach(GTK_GRID(p_main_box), entry_codebar, 7, 2, 1, 1);
+  gtk_widget_hide(entry_codebar);
+  gtk_widget_grab_focus(entry_codebar);
 
   gtk_widget_set_hexpand (date_heure, TRUE);
   gtk_widget_set_halign (date_heure, GTK_ALIGN_FILL);
@@ -289,6 +294,7 @@ void afficherMenu(){
 void refresh_produit(GtkWidget * widget[3]){
   
     char tmp[255];
+    int exist;
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     sprintf(tmp, "%02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mday, tm.tm_mon);
@@ -308,6 +314,7 @@ void refresh_produit(GtkWidget * widget[3]){
     fflush(stdout);
     strcpy(codeBar, gtk_entry_get_text(widget[1]));
     gtk_entry_set_text(widget[1], "");
+    gtk_widget_grab_focus(widget[1]);
     transformation(codeBar,codeBarTranslated);
     strcpy(url, "");
     strcat(url,"curl -s https://world.openfoodfacts.org/api/v0/product/");
@@ -320,47 +327,87 @@ void refresh_produit(GtkWidget * widget[3]){
     fread(buffer, 5000000, 1, fp);
     fclose(fp);
 
-
     parsed_json = json_tokener_parse(buffer);
     json_object_object_get_ex(parsed_json, "status", &status);
     if (json_object_get_int(status)==0){
       printf("Produit introuvable\n");}
     else {
-    json_object_object_get_ex(parsed_json, "product", &produit_json);
-    json_object_object_get_ex(produit_json, "product_name_fr", &name);
-    json_object_object_get_ex(produit_json, "image_url", &image_front_url);
-    json_object_object_get_ex(produit_json, "brands", &brand);
-    json_object_object_get_ex(produit_json, "product_quantity", &quantity);
-
-    strcpy(produit.brand, json_object_get_string(brand));
-    strcpy(produit.name, json_object_get_string(name));
-    strcpy(produit.codebar, codeBarTranslated);
-    strcpy(produit.quantity, json_object_get_string(quantity));
-    strcpy(produit.date, tmp);
-    strcpy(produit.outside, "0");
-    
-    strcpy(urlImage,"curl -s ");
-    strcat(urlImage,json_object_get_string(image_front_url));
-    strcat(urlImage," >img.jpg");
-    system(urlImage);
-
-
-    gtk_label_set_text(GTK_LABEL(widget[2]), json_object_get_string(name));
-    
-    GError *error = NULL;
-    GdkPixbuf *pix = gdk_pixbuf_new_from_file ("img.jpg", &error);
-    if (pix == NULL) {
-        g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
-        g_error_free (error);
-        exit (1);
+    exist = json_object_object_get_ex(parsed_json, "product", &produit_json);
+    exist = json_object_object_get_ex(produit_json, "product_name_fr", &name);
+    if (exist != false)
+      strcpy(produit.name, json_object_get_string(name));
+    else
+      strcpy(produit.name, "Not found");
+      
+    exist = json_object_object_get_ex(produit_json, "image_url", &image_front_url);
+    if (exist != false)
+    {
+      strcpy(urlImage,"curl -s ");
+      strcat(urlImage,json_object_get_string(image_front_url));
+      strcat(urlImage," >img.jpg");
+      printf("%s\n", urlImage);
+      system(urlImage);
+      GError *error = NULL;
+      GdkPixbuf *pix = gdk_pixbuf_new_from_file ("img.jpg", &error);
+      if (pix == NULL) {
+          g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
+          g_error_free (error);
     }
     
     gtk_image_set_from_pixbuf (widget[3], pix);
-    insertProduct(produit);
+    }
+    exist = json_object_object_get_ex(produit_json, "brands", &brand);
+    if (exist != false)
+      strcpy(produit.brand, json_object_get_string(brand));
+    else
+      strcpy(produit.brand, "Not found");
+    exist = json_object_object_get_ex(produit_json, "product_quantity", &quantity);
+    if (exist != false)
+      strcpy(produit.quantity, json_object_get_string(quantity));
+    else
+      strcpy(produit.quantity, "0");
+
+    strcpy(produit.codebar, codeBarTranslated);
+    strcpy(produit.date, tmp);
+    strcpy(produit.outside, "0");
+
+    gtk_label_set_text(GTK_LABEL(widget[2]), json_object_get_string(name));
+    
+    get_date_peremption(produit);
     
     }
 }
 
+void get_date_peremption(Product produit){
+  char line[256];
+  system("../julius/adinrec/adinrec -fvad 3 test.wav");
+  system("../julius/julius/julius -C ../ENVR-v5.4.Dnn.Bin/julius.jconf -dnnconf ../ENVR-v5.4.Dnn.Bin/dnn2.jconf > output.txt");
+  FILE *fp;
+  fp = fopen("output.txt", "r");
+  while (fgets(line, sizeof(line), fp)) {
+        /* note that fgets don't strip the terminating \n, checking its
+           presence would allow to handle lines longer that sizeof(line) */
+        if (line[0] == 's' && line[1] == 'e' && line[2] == 'n'){
+          printf("%s\n", line);
+          traduction_date(line);
+        }
+    } 
+  insertProduct(produit);
+}
+
+void retrait_produit(GtkWidget *entry_codebar_out){
+    int exist;
+    char codeBar[20], codeBarTranslated[20];
+    strcpy(codeBar, gtk_entry_get_text(entry_codebar_out));
+    gtk_entry_set_text(entry_codebar_out, "");
+    transformation(codeBar,codeBarTranslated);
+    printf("\ncodebar = %s\n", codeBarTranslated);
+    exist = productExist(codeBarTranslated);
+    if (exist != 0){
+      printf("Produit existe");
+      setOutside(codeBarTranslated);
+    }
+}
 
 void afficherAjout(){
   pthread_t time_thread;
@@ -387,9 +434,10 @@ void afficherAjout(){
   gtk_grid_attach(GTK_GRID (box_codebar[0]), box_codebar[3], 1, 3, 1, 1);
   
   box_codebar[1] = gtk_entry_new();
+  
   g_signal_connect (G_OBJECT (box_codebar[1]), "activate", G_CALLBACK (cb_codebar), box_codebar);
   gtk_grid_attach(GTK_GRID(box_codebar[0]), box_codebar[1], 2, 1, 1, 1);
-  
+  gtk_widget_grab_focus(box_codebar[1]);
 
   /* Affichage de la fenetre principale */
   gtk_widget_set_size_request(p_window, 400, 300);
@@ -461,4 +509,96 @@ char* transformation(char* codeBar, char* codeBarTranslated)
   }
   return codeBarTranslated;
 
+}
+
+char * traduction_date(char* phrase){
+  char mot[50];
+  char date[15];
+  char **list_mot;
+  int flag = 0;
+  int nb_mot;
+  int j=0;
+  printf("taille: %ld, phrase : %s\n", strlen(phrase), phrase);
+  for (int i=1; i<strlen(phrase);i++){
+    if (flag == 1){
+      mot[j] = phrase[i];
+      j++;
+    }
+    if (phrase[i-1] == '>')
+      flag = 1;
+    if (phrase[i+1] == ' ' && phrase[i+2] == '<' && phrase[i+3] == '/')
+    {
+      mot[j] = '\n';
+      break;
+    }
+  }
+  nb_mot = split(mot, ' ', &list_mot);
+  printf("%d\n", nb_mot);
+  for (int i=0; i<nb_mot - 1;i++){
+    printf("%s\n", list_mot[i]);
+
+  }
+    
+	
+}
+
+int split (const char *str, char c, char ***arr)
+{
+    int count = 1;
+    int token_len = 1;
+    int i = 0;
+    char *p;
+    char *t;
+
+    p = str;
+    while (*p != '\0')
+    {
+        if (*p == c)
+            count++;
+        p++;
+    }
+
+    *arr = (char**) malloc(sizeof(char*) * count);
+    if (*arr == NULL)
+        exit(1);
+
+    p = str;
+    while (*p != '\0')
+    {
+        if (*p == c)
+        {
+            (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+            if ((*arr)[i] == NULL)
+                exit(1);
+
+            token_len = 0;
+            i++;
+        }
+        p++;
+        token_len++;
+    }
+    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+    if ((*arr)[i] == NULL)
+        exit(1);
+
+    i = 0;
+    p = str;
+    t = ((*arr)[i]);
+    while (*p != '\0')
+    {
+        if (*p != c && *p != '\0')
+        {
+            *t = *p;
+            t++;
+        }
+        else
+        {
+            *t = '\0';
+            i++;
+            t = ((*arr)[i]);
+        }
+        p++;
+    }
+
+    return count;
 }
