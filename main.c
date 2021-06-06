@@ -84,6 +84,13 @@ void afficherNotes(){
 
 }
 
+void cb_suppression_produit(GtkWidget *p_widget, char id[10]) {
+  printf("On supprime : %s\n", id);
+  suppression_produit(id);
+  gtk_main_quit();
+  afficherContenu();
+}
+
 void afficherContenu(){
   char tmp[255];
   List_product produits;
@@ -99,6 +106,7 @@ void afficherContenu(){
   GtkWidget *quantity;
   GtkWidget *outside;
   GtkWidget *back;
+  GtkWidget *supprimer;
   GtkStyleContext *Context;
   
   /* Creation de la fenetre principale de notre application */
@@ -144,6 +152,13 @@ void afficherContenu(){
   Context = gtk_widget_get_style_context(outside);
   gtk_style_context_add_class(Context, "Item_tableau");
 
+  supprimer = gtk_label_new("Supprimer");
+  gtk_widget_set_hexpand (supprimer, TRUE);
+  gtk_widget_set_halign (supprimer, GTK_ALIGN_FILL);
+  gtk_grid_attach (GTK_GRID (p_main_box), supprimer, 5, 1, 1, 1);
+  Context = gtk_widget_get_style_context(supprimer);
+  gtk_style_context_add_class(Context, "Item_tableau");
+
   produits = retrieveProducts();
   for (int i = 0; i < produits.nb_produits ; i++) {
     ajout_item_tableau(p_main_box, i + 2, 0, produits.produits[i].name);
@@ -151,7 +166,16 @@ void afficherContenu(){
     ajout_item_tableau(p_main_box, i + 2, 2, produits.produits[i].date);
     ajout_item_tableau(p_main_box, i + 2, 3, produits.produits[i].quantity);
     ajout_item_tableau(p_main_box, i + 2, 4, produits.produits[i].outside);
-    
+
+    GtkWidget *tmp_label;
+    GtkStyleContext *Context;
+    tmp_label = gtk_button_new_with_label("X");
+    gtk_widget_set_hexpand (tmp_label, TRUE);
+    gtk_widget_set_halign (tmp_label, GTK_ALIGN_FILL);
+    g_signal_connect (G_OBJECT (tmp_label), "clicked", G_CALLBACK (cb_suppression_produit), produits.produits[i].id);
+    gtk_grid_attach (GTK_GRID (p_main_box), tmp_label, 5, i+2, 1, 1);
+    Context = gtk_widget_get_style_context(tmp_label);
+    gtk_style_context_add_class(Context, "Suppr_button");
 
   }
   gtk_window_set_destroy_with_parent(GTK_WINDOW(p_window), false);
@@ -294,19 +318,25 @@ void afficherMenu(){
 void refresh_produit(GtkWidget * widget[3]){
   
     char tmp[255];
-    int exist;
+    int exist, nb_categorie, flag=0;
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     sprintf(tmp, "%02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mday, tm.tm_mon);
     FILE *fp;
-    char buffer[5000000], codeBar[MAX_SIZE], codeBarTranslated[MAX_SIZE], url[200], urlImage[MAX_SIZE];
+    char buffer[5000000], codeBar[MAX_SIZE], codeBarTranslated[MAX_SIZE], url[200], urlImage[MAX_SIZE], tmp2[255];
+    char date[20];
+    char cat_key[10];
+    char tmp_en_name[50];
+    char string_en_name[50];
     struct json_object *parsed_json;
+    struct json_object *categories;
     struct json_object *produit_json;
     struct json_object *brand;
     struct json_object *status;
     struct json_object *quantity;
     struct json_object *image_front_url;
     struct json_object *name;
+    struct json_object *en_name;
     size_t n_friends;
     Product produit;
 
@@ -333,6 +363,29 @@ void refresh_produit(GtkWidget * widget[3]){
       printf("Produit introuvable\n");}
     else {
     exist = json_object_object_get_ex(parsed_json, "product", &produit_json);
+    json_object_object_get_ex(produit_json, "categories_hierarchy", &categories);
+    nb_categorie = json_object_array_length(categories);
+    printf("nb of catego : %d\n", nb_categorie -1 );
+    sprintf(cat_key, "%d", nb_categorie - 1);
+    printf("cat _ key : %s\n",cat_key);
+    en_name = json_object_array_get_idx(categories, nb_categorie -1);
+    printf("%s\n", json_object_to_json_string(categories));
+    printf("Existe ? %d\n", exist);
+ 
+      printf("%s\n", json_object_get_string(en_name));
+      strcpy(tmp_en_name, json_object_get_string(en_name));
+      int j = 0;
+      for (int i=0; i<strlen(tmp_en_name); i++){
+          if (flag == 1){
+            string_en_name[j] = tmp_en_name[i];
+            j++;
+          }
+          if (tmp_en_name[i] == ':')
+            flag = 1;
+      }
+      flag = 0;
+      printf("%s\n", string_en_name);
+      strcpy(produit.en_nom, string_en_name);
     exist = json_object_object_get_ex(produit_json, "product_name_fr", &name);
     if (exist != false)
       strcpy(produit.name, json_object_get_string(name));
@@ -371,15 +424,156 @@ void refresh_produit(GtkWidget * widget[3]){
     strcpy(produit.date, tmp);
     strcpy(produit.outside, "0");
 
-    gtk_label_set_text(GTK_LABEL(widget[2]), json_object_get_string(name));
     
-    get_date_peremption(produit);
-    
+    get_date_peremption(produit, date);
+    strcpy(tmp2, json_object_get_string(name));
+    strcat(tmp2, " | Date de péremption : ");
+    strcat(tmp2, date);
+    gtk_label_set_text(GTK_LABEL(widget[2]), tmp2);
     }
 }
 
-void get_date_peremption(Product produit){
+void afficherRecette(){
+  pthread_t time_thread;
+  List_product liste_produit;
+  int nb_ingredients = 0, exist;
+  char buffer[5000000];
+  char querry[255];
+  FILE *fp;
+
+  struct json_object *parsed_json;
+  struct json_object *recette_1;
+  struct json_object *recette_2;
+  struct json_object *url_image_1;
+  struct json_object *url_image_2;
+  struct json_object *name_1;
+  struct json_object *name_2;
+  GtkWidget *p_window = NULL;
+  GtkWidget *p_main_box = NULL;
+  GtkWidget *notes_label;
+  GtkWidget *back;
+  GtkWidget *line_header;
+  
+  GtkWidget *title_recette_1;
+  GtkWidget *title_recette_2;
+  GtkWidget *image_recette_1;
+  GtkWidget *image_recette_2;
+  GtkStyleContext *Context;
+
+  strcpy(querry, "");
+  p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  /* Creation du conteneur principal */
+  p_main_box = gtk_grid_new ();
+  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
+
+  header(p_main_box, p_window, "RECETTES");
+
+  liste_produit = retrieveProducts();
+
+  strcat(querry, "curl -s \"https://api.spoonacular.com/recipes/findByIngredients?apiKey=");
+  strcat(querry, "b28256c1c5a1413c8b7a1dfc28ea15ea");
+  strcat(querry, "&ingredients=");
+
+
+  for (int i = 0; i < liste_produit.nb_produits; i++){
+    if (strcmp(liste_produit.produits[i].en_nom,"") != 0){
+      if (nb_ingredients == 0){
+        strcat(querry, liste_produit.produits[i].en_nom);
+        nb_ingredients++;
+      }
+      else {
+        strcat(querry, ",+");
+        strcat(querry, liste_produit.produits[i].en_nom);
+        nb_ingredients++;
+      }
+    }
+  }
+  if (nb_ingredients != 0){
+  strcat(querry, "&number=2\" > recipe.json");
+  printf("%s\n", querry);
+  system(querry);
+
+  fp = fopen("recipe.json", "r");
+
+  fread(buffer, 5000000, 1, fp);
+  fclose(fp);
+
+  parsed_json = json_tokener_parse(buffer);
+  recette_1 = json_object_array_get_idx(parsed_json, 0);
+  recette_2 = json_object_array_get_idx(parsed_json, 1);
+  exist = json_object_object_get_ex(recette_1, "title", &name_1);
+  if (exist != false){
+    title_recette_1 = gtk_label_new(json_object_get_string(name_1));
+    Context = gtk_widget_get_style_context(title_recette_1);
+    gtk_style_context_add_class(Context, "Date_notes");
+    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_1, 0, 2, 2, 1);
+
+  }
+  exist = json_object_object_get_ex(recette_1, "image", &url_image_1);
+  if (exist != false){
+    strcpy(querry, "");
+    strcpy(querry,"curl -s ");
+    strcat(querry,json_object_get_string(url_image_1));
+    strcat(querry," >recette_1.jpg");
+    printf("%s\n", querry);
+    system(querry);
+    GError *error = NULL;
+    GdkPixbuf *pix = gdk_pixbuf_new_from_file ("recette_1.jpg", &error);
+    if (pix == NULL) {
+        g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
+        g_error_free (error);
+    }
+    image_recette_1 = gtk_image_new();
+    gtk_image_set_from_pixbuf (image_recette_1, pix);
+    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_1, 0, 3, 2, 4);
+  }
+
+  exist = json_object_object_get_ex(recette_2, "title", &name_2);
+  if (exist != false){
+    title_recette_2 = gtk_label_new(json_object_get_string(name_2));
+    Context = gtk_widget_get_style_context(title_recette_2);
+    gtk_style_context_add_class(Context, "Date_notes");
+    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_2, 3, 2, 2, 1);
+  }
+  exist = json_object_object_get_ex(recette_2, "image", &url_image_2);
+  if (exist != false){
+    strcpy(querry, "");
+    strcpy(querry,"curl -s ");
+    strcat(querry,json_object_get_string(url_image_2));
+    strcat(querry," >recette_2.jpg");
+    printf("%s\n", querry);
+    system(querry);
+    GError *error = NULL;
+    GdkPixbuf *pix = gdk_pixbuf_new_from_file ("recette_2.jpg", &error);
+    if (pix == NULL) {
+        g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
+        g_error_free (error);
+    }
+    image_recette_2 = gtk_image_new();
+    gtk_image_set_from_pixbuf (image_recette_2, pix);
+    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_2, 3, 3, 2, 4);
+  }
+
+
+
+  /* Affichage de la fenetre principale */
+  gtk_widget_set_size_request(p_window, 400, 300);
+  gtk_window_fullscreen(GTK_WINDOW(p_window));
+  GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
+  //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
+  gtk_widget_modify_bg(p_window, GTK_STATE_NORMAL, &grey);
+  gtk_widget_show_all (p_window);
+  /* Lancement de la boucle principale */
+  gtk_main ();
+  }
+  else
+    afficherMenu();
+
+}
+
+char * get_date_peremption(Product produit, char *date){
   char line[256];
+  
   system("../julius/adinrec/adinrec -fvad 3 test.wav");
   system("../julius/julius/julius -C ../ENVR-v5.4.Dnn.Bin/julius.jconf -dnnconf ../ENVR-v5.4.Dnn.Bin/dnn2.jconf > output.txt");
   FILE *fp;
@@ -389,10 +583,14 @@ void get_date_peremption(Product produit){
            presence would allow to handle lines longer that sizeof(line) */
         if (line[0] == 's' && line[1] == 'e' && line[2] == 'n'){
           printf("%s\n", line);
-          traduction_date(line);
+          traduction_date(line, date);
+          strcpy(produit.date, date);
+        
+          break;
         }
     } 
   insertProduct(produit);
+  return date;
 }
 
 void retrait_produit(GtkWidget *entry_codebar_out){
@@ -511,35 +709,116 @@ char* transformation(char* codeBar, char* codeBarTranslated)
 
 }
 
-char * traduction_date(char* phrase){
-  char mot[50];
-  char date[15];
-  char **list_mot;
+char * traduction_date(char* phrase, char * date){
+  char liste_mots[5][20];
   int flag = 0;
-  int nb_mot;
+  int nb_mot = 0;
   int j=0;
   printf("taille: %ld, phrase : %s\n", strlen(phrase), phrase);
   for (int i=1; i<strlen(phrase);i++){
     if (flag == 1){
-      mot[j] = phrase[i];
-      j++;
+      if (phrase[i] == ' '){
+        liste_mots[nb_mot][j] = '\0';
+        nb_mot++;
+        j = 0;
+      }
+      else {
+        liste_mots[nb_mot][j] = phrase[i];
+        j++;
+      }
     }
     if (phrase[i-1] == '>')
+    {
       flag = 1;
+    }
     if (phrase[i+1] == ' ' && phrase[i+2] == '<' && phrase[i+3] == '/')
     {
-      mot[j] = '\n';
+      liste_mots[nb_mot][j] = '\0';
       break;
     }
   }
-  nb_mot = split(mot, ' ', &list_mot);
-  printf("%d\n", nb_mot);
-  for (int i=0; i<nb_mot - 1;i++){
-    printf("%s\n", list_mot[i]);
 
-  }
-    
+  getDate(liste_mots, nb_mot + 1, date);
+  printf("La date est : %s\n", date);
+  return date;
 	
+}
+
+char * getDate(char liste_mot[5][20], int nb_mot, char *date){
+
+  strcpy(date, "");
+  strcat(date, "2021-");
+  for (int i=0; i<nb_mot;i++){
+    printf("%s\n", liste_mot[i]);
+    if (strcmp(liste_mot[i], "one") == 0)
+      strcat(date, "01");
+    else if (strcmp(liste_mot[i], "two") == 0 || strcmp(liste_mot[i], "to") == 0 )
+      strcat(date, "02");
+    else if (strcmp(liste_mot[i], "three") == 0)
+      strcat(date, "03");
+    else if (strcmp(liste_mot[i], "four") == 0 || strcmp(liste_mot[i], "for") == 0 )
+      strcat(date, "04");
+    else if (strcmp(liste_mot[i], "five") == 0)
+      strcat(date, "05");
+    else if (strcmp(liste_mot[i], "six") == 0)
+      strcat(date, "06");
+    else if (strcmp(liste_mot[i], "seven") == 0)
+      strcat(date, "07");
+    else if (strcmp(liste_mot[i], "eight") == 0)
+      strcat(date, "08");
+    else if (strcmp(liste_mot[i], "nine") == 0)
+      strcat(date, "09");
+    else if (strcmp(liste_mot[i], "ten") == 0)
+      strcat(date, "10");
+    else if (strcmp(liste_mot[i], "eleven") == 0)
+      strcat(date, "11");
+    else if (strcmp(liste_mot[i], "twelve") == 0)
+      strcat(date, "12");
+    else if (strcmp(liste_mot[i], "thirteen") == 0)
+      strcat(date, "13");
+    else if (strcmp(liste_mot[i], "fourteen") == 0)
+      strcat(date, "14");
+    else if (strcmp(liste_mot[i], "fifteen") == 0)
+      strcat(date, "15");
+    else if (strcmp(liste_mot[i], "sixteen") == 0)
+      strcat(date, "16");
+    else if (strcmp(liste_mot[i], "seventeen") == 0)
+      strcat(date, "17");
+    else if (strcmp(liste_mot[i], "eighteen") == 0)
+      strcat(date, "18");
+    else if (strcmp(liste_mot[i], "nineteen") == 0)
+      strcat(date, "19");
+    else if (strcmp(liste_mot[i], "twenty") == 0)
+      strcat(date, "20");
+    else if (strcmp(liste_mot[i], "twenty-one") == 0)
+      strcat(date, "21");
+    else if (strcmp(liste_mot[i], "twenty-two") == 0)
+      strcat(date, "22");
+    else if (strcmp(liste_mot[i], "twenty-three") == 0)
+      strcat(date, "23");
+    else if (strcmp(liste_mot[i], "twenty-four") == 0)
+      strcat(date, "24");
+    else if (strcmp(liste_mot[i], "twenty-five") == 0)
+      strcat(date, "25");
+    else if (strcmp(liste_mot[i], "twenty-six") == 0)
+      strcat(date, "26");
+    else if (strcmp(liste_mot[i], "twenty-seven") == 0)
+      strcat(date, "27");
+    else if (strcmp(liste_mot[i], "twenty-eight") == 0)
+      strcat(date, "28");
+    else if (strcmp(liste_mot[i], "twenty-nine") == 0)
+      strcat(date, "29");
+    else if (strcmp(liste_mot[i], "thirty") == 0)
+      strcat(date, "30");
+    else if (strcmp(liste_mot[i], "thirty-one") == 0)
+      strcat(date, "31");
+    else
+      strcat(date, "00");
+    if (i == 0)
+      strcat(date, "-");
+  }
+  printf("date : %s\n", date);
+  return date;
 }
 
 int split (const char *str, char c, char ***arr)

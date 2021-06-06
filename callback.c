@@ -37,7 +37,8 @@ void cb_notes (GtkWidget *p_widget, gpointer user_data)
 
 void cb_recette (GtkWidget *p_widget, gpointer user_data)
 {
-
+  gtk_main_quit();
+  afficherRecette();
   (void)p_widget;
   (void)user_data;
 }
@@ -59,3 +60,4 @@ void cb_codebar_out(GtkWidget *p_widget, GtkWidget *entry_codebar_out) {
   printf("Retrait du produit");
   retrait_produit(entry_codebar_out);
 }
+

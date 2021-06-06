@@ -20,7 +20,8 @@ int insertCache(char codebar[50]){
 int insertProduct(Product produit){
   MYSQL *con = connection();
   char querry[500];
-  sprintf(querry, "INSERT INTO t_produit(nom,quantite,peremption,codeBarre,marque,outside) VALUES('%s','%s','%s','%s','%s','%s')",produit.name, produit.quantity, produit.date, produit.codebar, produit.brand, produit.outside);
+  sprintf(querry, "INSERT INTO t_produit(nom,quantite,peremption,codeBarre,marque,outside,en_nom) VALUES('%s','%s','%s','%s','%s','%s','%s')",produit.name, produit.quantity, produit.date, produit.codebar, produit.brand, produit.outside, produit.en_nom);
+  printf("%s\n", querry);
   return mysql_query(con, querry);
 }
 
@@ -44,7 +45,7 @@ void setOutside(char codebar[20]){
   char outside[2];
   char querry[500];
   sprintf(querry, "SELECT outside from t_produit where codeBarre = %s", codebar);
-  printf(querry);
+  printf("%s\n",querry);
   if (mysql_query(con, querry))
   {
     fprintf(stderr, "Erreur dans la connexion");
@@ -61,7 +62,7 @@ void setOutside(char codebar[20]){
     sprintf(querry, "UPDATE t_produit SET outside='1' where codeBarre = %s", codebar);
   else
     sprintf(querry, "UPDATE t_produit SET outside='0' where codeBarre = %s", codebar);
-  printf(querry);
+  printf("%s\n",querry);
   if (mysql_query(con, querry))
   {
     fprintf(stderr, "Erreur dans la connexion");
@@ -97,10 +98,24 @@ List_product retrieveProducts(){
       strcpy(list_product.produits[i].codebar  , row[4]);
       strcpy(list_product.produits[i].brand    , row[5]);
       strcpy(list_product.produits[i].outside  , row[6]);
+      strcpy(list_product.produits[i].en_nom   , row[7]);
       i++;
   }
   list_product.nb_produits = i;
   return list_product;
+}
+
+void suppression_produit(char id[10]){
+  MYSQL *con = connection();
+  char querry[500];
+  sprintf(querry, "DELETE from t_produit where id = %s", id);
+  printf("%s", querry);
+  if (mysql_query(con, querry))
+  {
+    fprintf(stderr, "Erreur dans la connexion");
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
 }
 
 list_note retrieveNotes(){

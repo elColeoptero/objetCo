@@ -49,3 +49,11 @@ button:hover{
     margin-bottom: 20px;
     border:2px solid black;
 }
+
+.Suppr_button{
+    font-weight: 800;
+    font-size: 25px;
+    padding: 10px 10px 10px 10px;
+    border: 2px solid black;
+    background-color: red;
+}
