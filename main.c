@@ -37,6 +37,18 @@ void *time_thread_function(void *arg){
   }
 }
 
+void *time_thread_menu_function(void *arg){
+  while(GTK_IS_LABEL(date_heure_menu)) {
+  char tmp[255];
+  time_t t = time(NULL);
+  struct tm tm = *localtime(&t);
+  sprintf(tmp, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+  gtk_label_set_text(date_heure_menu, tmp);
+  sleep(1);
+  }
+}
+
+
 void afficherNotes(){
   pthread_t time_thread;
   list_note notes;
@@ -85,9 +97,9 @@ void afficherNotes(){
 }
 
 void cb_suppression_produit(GtkWidget *p_widget, char id[10]) {
+  gtk_widget_destroy(p_window_contenu);
   printf("On supprime : %s\n", id);
   suppression_produit(id);
-  gtk_main_quit();
   afficherContenu();
 }
 
@@ -96,7 +108,6 @@ void afficherContenu(){
   List_product produits;
   pthread_t time_thread;
 
-  GtkWidget *p_window = NULL;
   GtkWidget *p_main_box = NULL;
   GtkWidget *box = NULL;
   GtkWidget *tmp_label;
@@ -110,12 +121,12 @@ void afficherContenu(){
   GtkStyleContext *Context;
   
   /* Creation de la fenetre principale de notre application */
-  p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  p_window_contenu = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   /* Creation du conteneur principal */
   p_main_box = gtk_grid_new ();
-  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
+  gtk_container_add (GTK_CONTAINER (p_window_contenu), p_main_box);
 
-  header(p_main_box, p_window, "CONTENU");
+  header(p_main_box, p_window_contenu, "CONTENU");
 
   name = gtk_label_new("Nom du produit");
   gtk_widget_set_hexpand (name, TRUE);
@@ -178,14 +189,14 @@ void afficherContenu(){
     gtk_style_context_add_class(Context, "Suppr_button");
 
   }
-  gtk_window_set_destroy_with_parent(GTK_WINDOW(p_window), false);
-  gtk_window_fullscreen(GTK_WINDOW(p_window));
+  gtk_window_set_destroy_with_parent(GTK_WINDOW(p_window_contenu), false);
+  gtk_window_fullscreen(GTK_WINDOW(p_window_contenu));
   GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
   //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
-  gtk_widget_modify_bg(p_window, GTK_STATE_NORMAL, &grey);
-  gtk_widget_show_all (p_window);
+  gtk_widget_modify_bg(p_window_contenu, GTK_STATE_NORMAL, &grey);
+  gtk_widget_show_all (p_window_contenu);
   /* Lancement de la boucle principale */
-  gtk_main ();
+  gtk_main();
 
 }
 
@@ -212,8 +223,9 @@ void afficherMenu(){
   GtkWidget *p_window = NULL;
   GtkWidget *p_main_box = NULL;
   GtkWidget *label;
+  
 
-  date_heure = gtk_label_new("");
+  date_heure_menu = gtk_label_new("");
   GtkStyleContext *Context;
   
   /* Creation de la fenetre principale de notre application */
@@ -229,7 +241,7 @@ void afficherMenu(){
   Context = gtk_widget_get_style_context(label);
   gtk_style_context_add_class(Context, "Date");
   
-  Context = gtk_widget_get_style_context(date_heure);
+  Context = gtk_widget_get_style_context(date_heure_menu);
   gtk_style_context_add_class(Context, "Date");
 
   GtkWidget *entry_codebar = gtk_entry_new();
@@ -238,14 +250,14 @@ void afficherMenu(){
   gtk_widget_hide(entry_codebar);
   gtk_widget_grab_focus(entry_codebar);
 
-  gtk_widget_set_hexpand (date_heure, TRUE);
-  gtk_widget_set_halign (date_heure, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (date_heure_menu, TRUE);
+  gtk_widget_set_halign (date_heure_menu, GTK_ALIGN_FILL);
 
   gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-  gtk_label_set_justify(GTK_LABEL(date_heure), GTK_JUSTIFY_RIGHT);
+  gtk_label_set_justify(GTK_LABEL(date_heure_menu), GTK_JUSTIFY_RIGHT);
   gtk_grid_attach (GTK_GRID (p_main_box), label, 3, 0, 3, 1);
-  gtk_grid_attach(GTK_GRID(p_main_box), date_heure, 7, 0, 1, 1);
-  pthread_create(&time_thread, NULL, time_thread_function, NULL);
+  gtk_grid_attach(GTK_GRID(p_main_box), date_heure_menu, 7, 0, 1, 1);
+  pthread_create(&time_thread, NULL, time_thread_menu_function, NULL);
 
   GtkWidget *p_button_contenu = NULL;
 
@@ -436,7 +448,7 @@ void refresh_produit(GtkWidget * widget[3]){
 void afficherRecette(){
   pthread_t time_thread;
   List_product liste_produit;
-  int nb_ingredients = 0, exist;
+  int nb_ingredients = 0, exist=0;
   char buffer[5000000];
   char querry[255];
   FILE *fp;
@@ -465,7 +477,6 @@ void afficherRecette(){
   /* Creation du conteneur principal */
   p_main_box = gtk_grid_new ();
   gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
-
   header(p_main_box, p_window, "RECETTES");
 
   liste_produit = retrieveProducts();
@@ -488,6 +499,7 @@ void afficherRecette(){
       }
     }
   }
+  printf("nb ing : %d\n", nb_ingredients);
   if (nb_ingredients != 0){
   strcat(querry, "&number=2\" > recipe.json");
   printf("%s\n", querry);
@@ -505,8 +517,8 @@ void afficherRecette(){
   if (exist != false){
     title_recette_1 = gtk_label_new(json_object_get_string(name_1));
     Context = gtk_widget_get_style_context(title_recette_1);
-    gtk_style_context_add_class(Context, "Date_notes");
-    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_1, 0, 2, 2, 1);
+    gtk_style_context_add_class(Context, "item_tableau");
+    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_1, 0, 2, 4, 1);
 
   }
   exist = json_object_object_get_ex(recette_1, "image", &url_image_1);
@@ -525,15 +537,15 @@ void afficherRecette(){
     }
     image_recette_1 = gtk_image_new();
     gtk_image_set_from_pixbuf (image_recette_1, pix);
-    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_1, 0, 3, 2, 4);
+    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_1, 0, 3, 4, 4);
   }
 
   exist = json_object_object_get_ex(recette_2, "title", &name_2);
   if (exist != false){
     title_recette_2 = gtk_label_new(json_object_get_string(name_2));
     Context = gtk_widget_get_style_context(title_recette_2);
-    gtk_style_context_add_class(Context, "Date_notes");
-    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_2, 3, 2, 2, 1);
+    gtk_style_context_add_class(Context, "item_tableau");
+    gtk_grid_attach(GTK_GRID(p_main_box), title_recette_2, 4, 2, 3, 1);
   }
   exist = json_object_object_get_ex(recette_2, "image", &url_image_2);
   if (exist != false){
@@ -551,7 +563,7 @@ void afficherRecette(){
     }
     image_recette_2 = gtk_image_new();
     gtk_image_set_from_pixbuf (image_recette_2, pix);
-    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_2, 3, 3, 2, 4);
+    gtk_grid_attach(GTK_GRID(p_main_box), image_recette_2, 4, 3, 3, 4);
   }
 
 
@@ -571,11 +583,12 @@ void afficherRecette(){
 
 }
 
+
 char * get_date_peremption(Product produit, char *date){
   char line[256];
   
-  system("../julius/adinrec/adinrec -fvad 3 test.wav");
-  system("../julius/julius/julius -C ../ENVR-v5.4.Dnn.Bin/julius.jconf -dnnconf ../ENVR-v5.4.Dnn.Bin/dnn2.jconf > output.txt");
+  system("/home/pi/Documents/julius/adinrec/adinrec -fvad 3 test.wav");
+  system("/home/pi/Documents/julius/julius/julius -C ../ENVR-v5.4.Dnn.Bin/julius.jconf -dnnconf ../ENVR-v5.4.Dnn.Bin/dnn2.jconf > output.txt");
   FILE *fp;
   fp = fopen("output.txt", "r");
   while (fgets(line, sizeof(line), fp)) {
@@ -593,7 +606,7 @@ char * get_date_peremption(Product produit, char *date){
   return date;
 }
 
-void retrait_produit(GtkWidget *entry_codebar_out){
+void retrait_produit(GtkWidget *entry_codebar_out){	
     int exist;
     char codeBar[20], codeBarTranslated[20];
     strcpy(codeBar, gtk_entry_get_text(entry_codebar_out));
@@ -604,7 +617,84 @@ void retrait_produit(GtkWidget *entry_codebar_out){
     if (exist != 0){
       printf("Produit existe");
       setOutside(codeBarTranslated);
+      afficherContenu();
+     /* strcpy(url, "curl -s https://world.openfoodfacts.org/api/v0/product/");
+      strcat(url,codeBarTranslated);
+      strcat(url,".json > file.json");
+	printf("%s\n", url);
+    system(url);
+    fp = fopen("file.json","r");
+    fread(buffer, 5000000, 1, fp);
+    fclose(fp);
+
+    parsed_json = json_tokener_parse(buffer);
+    exist = json_object_object_get_ex(parsed_json, "product", &produit_json);
+    exist = json_object_object_get_ex(produit_json, "image_url", &image_front_url);
+    if (exist != false)
+    {
+      strcpy(urlImage,"curl -s ");
+      strcat(urlImage,json_object_get_string(image_front_url));
+      strcat(urlImage," >img.jpg");
+      printf("%s\n", urlImage);
+      system(urlImage);
+      GError *error = NULL;
+      GdkPixbuf *pix = gdk_pixbuf_new_from_file ("img.jpg", &error);
+      if (pix == NULL) {
+          g_printerr ("Error loading file: #%d %s\n", error->code, error->message);
+          g_error_free (error);
     }
+	    GtkWidget *p_window = NULL;
+	  GtkWidget *p_main_box = NULL;
+	  GtkWidget *label = NULL;
+		
+	  
+	  GtkStyleContext *Context = NULL;
+	  
+	   //Creation de la fenetre principale de notre application 
+	  p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	   g_signal_connect(G_OBJECT(p_window), "destroy", G_CALLBACK(quitter), p_window);		
+	   //Creation du conteneur principal 
+	  label = gtk_label_new("Produit trouvé");
+  
+
+	  GtkWidget *image = NULL;
+	  image = gtk_image_new();
+	  gtk_image_set_from_pixbuf (image, pix);
+	  p_main_box = gtk_grid_new ();
+	  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
+	  gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+  gtk_grid_attach (GTK_GRID (p_main_box), label, 1, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (p_main_box), image, 1, 2, 1, 1);
+	  gtk_widget_set_size_request(p_window, 400, 300);
+	  GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
+	  //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
+	  gtk_widget_modify_bg(p_window, GTK_STATE_NORMAL, &grey);
+	  gtk_widget_show_all (p_window);
+	  /* Lancement de la boucle principale 
+	  gtk_main ();
+	}
+    }
+	else{
+GtkWidget *p_window = NULL;
+	  GtkWidget *p_main_box = NULL;
+	  GtkWidget *label = NULL;
+	  
+	  GtkStyleContext *Context = NULL;
+	p_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	  /* Creation du conteneur principal 
+	  label = gtk_label_new("Produit non trouvé");
+  
+	  p_main_box = gtk_grid_new ();
+	  gtk_container_add (GTK_CONTAINER (p_window), p_main_box);
+	  gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+  gtk_grid_attach (GTK_GRID (p_main_box), label, 1, 1, 1, 1);	
+	  gtk_widget_set_size_request(p_window, 400, 300);
+	  GdkColor grey = {0, 0xaaaa, 0xaaaa, 0xaaaa};
+	  //gtk_window_set_resizable(GTK_WINDOW(p_window), FALSE);
+	  gtk_widget_modify_bg(p_window, GTK_STATE_NORMAL, &grey);
+	  gtk_widget_show_all (p_window);
+	gtk_main ();*/
+}
 }
 
 void afficherAjout(){
@@ -696,12 +786,12 @@ char* transformation(char* codeBar, char* codeBarTranslated)
       case 40: strcat(codeBarTranslated,"5");break;
       case 45: strcat(codeBarTranslated,"6");break;
       case 95: strcat(codeBarTranslated,"8");break;
-      case -61 : 
+      case (char)-61 : 
         switch (codeBar[++i]){
-          case -87 : strcat(codeBarTranslated,"2");break;
-          case -88 : strcat(codeBarTranslated,"7");break;
-          case -89 : strcat(codeBarTranslated,"9");break;
-          case -96 : strcat(codeBarTranslated,"0");break;
+          case (char)-87 : strcat(codeBarTranslated,"2");break;
+          case (char)-88 : strcat(codeBarTranslated,"7");break;
+          case (char)-89 : strcat(codeBarTranslated,"9");break;
+          case (char)-96 : strcat(codeBarTranslated,"0");break;
         }     
     }
   }

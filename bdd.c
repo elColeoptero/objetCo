@@ -6,8 +6,8 @@
 #include "bdd.h"
 
 #define HOST "localhost"
-#define USER "julien"
-#define PASSWORD "Lnpj&c1b"
+#define USER "root"
+#define PASSWORD "root"
 #define DATABASE "FridgeIT"
 
 int insertCache(char codebar[50]){

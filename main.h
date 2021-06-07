@@ -33,9 +33,11 @@ typedef struct {
 
 
 #define MAX_SIZE 20
-
+#define false 0
 
 GtkWidget * date_heure;
+GtkWidget *date_heure_menu;
+GtkWidget * p_window_contenu;
 
 
 void afficherMenu();

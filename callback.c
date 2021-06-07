@@ -61,3 +61,7 @@ void cb_codebar_out(GtkWidget *p_widget, GtkWidget *entry_codebar_out) {
   retrait_produit(entry_codebar_out);
 }
 
+void quitter(GtkWidget *p_widget, GtkWidget *window) {
+  gtk_widget_destroy(window);
+}
+
